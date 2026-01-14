@@ -1,0 +1,31 @@
+set -euo pipefail
+BUCKET="gs://zermeno-bus673"
+DEST_PREFIX="tlc/yellow/2023"
+MONTHS=("01" "02" "03" "04" "05" "06" "07" "08" "09" "10" "11" "12")
+YEAR="2023"
+LOG_DIR="logs"
+mkdir -p "$LOG_DIR"
+RUN_ID="$(date +"%Y%m%d_%H%M%S")"
+LOG_FILE="${LOG_DIR}/upload_${RUN_ID}.log"
+echo "==============================================="| tee -a "$LOG_FILE"
+echo "BUS 673 - Download TLC data and upload to GCS" | tee -a "$LOG_FILE" 
+echo "Bucket: ${BUCKET}" | tee -a "$LOG_FILE"
+echo "Prefix: ${DEST_PREFIX}" | tee -a "$LOG_FILE"
+echo "Log: ${LOG_FILE}" | tee -a "$LOG_FILE"
+echo "===============================================" | tee -a "$LOG_FILE"
+BASE_URL="https://d37ci6vzurychx.cloudfront.net/trip-data"
+for MONTH in "${MONTHS[@]}"; do
+    FILE="yellow_tripdata_${YEAR}-${MONTH}.parquet"
+    URL="${BASE_URL}/${FILE}"
+    DEST="${BUCKET}/${DEST_PREFIX}/${FILE}"
+echo "" | tee -a "$LOG_FILE"
+echo "[Downloading] ${URL}" | tee -a "$LOG_FILE"
+echo "[Uploading ] ${DEST}" | tee -a "$LOG_FILE"
+curl -sS -L --retry 5 --retry-delay 2 --retry-all-errors "${URL}" \
+| gsutil cp - "${DEST}" 2>&1 | tee -a "$LOG_FILE"
+echo "[OK] Uploaded ${FILE}" | tee -a "$LOG_FILE"
+done
+echo "" | tee -a "$LOG_FILE"
+echo "Uploaded files:" | tee -a "$LOG_FILE"
+gsutil ls -l "${BUCKET}/${DEST_PREFIX}/" | tee -a "$LOG_FILE"
+echo "DONE." | tee -a "$LOG_FILE"
